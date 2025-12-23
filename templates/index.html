@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card auth-container">
+    <!-- Login Section -->
+    <div class="login-section">
+        <h2>로그인</h2>
+        <form method="post" action="/">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="login">
+            <div class="form-group">
+                <label for="login-id">ID</label>
+                <input type="text" id="login-id" name="username" required placeholder="아이디를 입력하세요">
+            </div>
+            <div class="form-group">
+                <label for="login-pw">Password</label>
+                <input type="password" id="login-pw" name="password" required placeholder="비밀번호를 입력하세요">
+            </div>
+            <button type="submit" class="btn-primary">로그인</button>
+        </form>
+    </div>
+
+    <!-- Divider (Visual only, CSS handles layout) -->
+
+    <!-- Signup Section -->
+    <div class="signup-section">
+        <h2>회원가입</h2>
+        <form method="post" action="/">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="signup">
+            <div class="form-group">
+                <label for="signup-name">이름 (실명)</label>
+                <input type="text" id="signup-name" name="first_name" required placeholder="홍길동">
+            </div>
+            <div class="form-group">
+                <label for="signup-id">ID</label>
+                <input type="text" id="signup-id" name="username" required placeholder="아이디 생성">
+            </div>
+            <div class="form-group">
+                <label for="signup-pw">Password</label>
+                <input type="password" id="signup-pw" name="password" required placeholder="비밀번호 설정">
+            </div>
+            <button type="submit" class="btn-primary"
+                style="background: linear-gradient(135deg, #38bdf8, #0ea5e9);">회원가입</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

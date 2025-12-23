@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card container" style="max-width: 600px; text-align: center;">
+    <h2>{{ message }}</h2>
+
+    {% if can_vote %}
+    <form method="post" action="/vote/">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="candidate" style="text-align: left;">투표 내용</label>
+            <input type="text" id="candidate" name="candidate" required placeholder="후보자 이름이나 내용을 입력하세요"
+                style="text-align: center; font-size: 1.2rem;">
+        </div>
+        <button type="submit" class="btn-primary" style="font-size: 1.1rem; padding: 1rem;">제출하기</button>
+    </form>
+    {% else %}
+    <div style="padding: 2rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem; margin-top: 2rem;">
+        {% if has_voted %}
+        <h3 style="color: var(--success-color);">이미 투표하셨습니다!</h3>
+        <p>참여해 주셔서 감사합니다.</p>
+        {% else %}
+        <h3 style="color: var(--error-color);">투표 권한이 없습니다.</h3>
+        <p>관리자의 승인을 기다려주세요.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

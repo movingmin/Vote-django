@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: voteweb_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootword
+      MYSQL_DATABASE: voteweb_db
+      MYSQL_USER: voteuser
+      MYSQL_PASSWORD: votepassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+
+volumes:
+  db_data:

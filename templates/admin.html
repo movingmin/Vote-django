@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card container" style="max-width: 1000px;">
+    <h2>관리자 대시보드</h2>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+
+        <!-- Vote Results -->
+        <div class="section">
+            <h3>투표 결과</h3>
+            <canvas id="voteChart"></canvas>
+
+            <div style="margin-top: 1rem; max-height: 200px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; color: var(--text-primary);">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                            <th style="text-align: left; padding: 0.5rem;">항목</th>
+                            <th style="text-align: right; padding: 0.5rem;">득표수</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in results %}
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <td style="padding: 0.5rem;">{{ item.candidate }}</td>
+                            <td style="padding: 0.5rem; text-align: right;">{{ item.count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <form method="post" action="/root/" onsubmit="return confirm('정말 초기화하시겠습니까? 모든 투표 데이터가 삭제됩니다.');"
+                style="margin-top: 1rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reset_votes">
+                <button type="submit"
+                    style="background: var(--error-color); color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; cursor: pointer; width: 100%;">투표
+                    결과 초기화</button>
+            </form>
+        </div>
+
+        <!-- Management -->
+        <div class="section">
+            <div style="margin-bottom: 2rem;">
+                <h3>메시지 설정</h3>
+                <form method="post" action="/root/">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_message">
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" name="message" value="{{ message }}" required style="flex: 1;">
+                        <button type="submit" class="btn-primary" style="width: auto;">변경</button>
+                    </div>
+                </form>
+            </div>
+
+            <div>
+                <h3>사용자 관리 (투표권 부여)</h3>
+                <form method="post" action="/root/">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="search_user">
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="text" name="keyword" placeholder="이름 또는 ID 검색" value="{{ keyword|default:'' }}"
+                            style="flex: 1;">
+                        <button type="submit" class="btn-primary" style="width: auto;">검색</button>
+                    </div>
+                </form>
+
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--glass-border);">
+                                <th style="text-align: left; padding: 0.5rem;">이름 (ID)</th>
+                                <th style="text-align: center; padding: 0.5rem;">상태</th>
+                                <th style="text-align: right; padding: 0.5rem;">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 0.5rem;">{{ u.first_name }} ({{ u.username }})</td>
+                                <td style="padding: 0.5rem; text-align: center;">
+                                    {% if u.profile.can_vote %}
+                                    <span style="color: var(--success-color);">승인됨</span>
+                                    {% else %}
+                                    <span style="color: var(--text-secondary);">미승인</span>
+                                    {% endif %}
+                                    {% if u.has_voted %}
+                                    <span style="font-size: 0.8rem;">(투표완료)</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 0.5rem; text-align: right;">
+                                    {% if not u.profile.can_vote %}
+                                    <form method="post" action="/root/" style="display: inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="grant_permission">
+                                        <input type="hidden" name="user_id" value="{{ u.id }}">
+                                        <button type="submit"
+                                            style="background: var(--accent-color); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">권한부여</button>
+                                    </form>
+                                    {% endif %}
+                                    {% if u.has_voted %}
+                                    <form method="post" action="/root/" style="display: inline;"
+                                        onsubmit="return confirm('이 사용자의 투표를 무효 처리하시겠습니까?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="void_vote">
+                                        <input type="hidden" name="user_id" value="{{ u.id }}">
+                                        <button type="submit"
+                                            style="background: var(--text-secondary); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer;">무효화</button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('voteChart').getContext('2d');
+    const labels = [{% for item in results %}'{{ item.candidate }}', {% endfor %}];
+    const data = [{% for item in results %}{ { item.count } }, {% endfor %}];
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '득표수',
+                data: data,
+                backgroundColor: 'rgba(139, 92, 246, 0.5)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                x: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#f8fafc' } }
+            }
+        }
+    });
+</script>
+{% endblock %}
