@@ -6,7 +6,9 @@ from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Count
 from .models import Profile, SystemConfig, Vote
+from .decorators import class_ratelimit
 
+@class_ratelimit(key_prefix='login_signup', limit=20, period=60)
 class IndexView(View):
     def get(self, request):
         if request.user.is_authenticated:
@@ -48,6 +50,7 @@ def logout_view(request):
     logout(request)
     return redirect('/')
 
+@class_ratelimit(key_prefix='vote', limit=1, period=60)
 class VoteView(LoginRequiredMixin, View):
     def get(self, request):
         config = SystemConfig.load()
@@ -98,23 +101,48 @@ class AdminView(LoginRequiredMixin, UserPassesTestMixin, View):
         config = SystemConfig.load()
         results = Vote.objects.values('candidate').annotate(count=Count('id')).order_by('-count')
         
+        config = SystemConfig.load()
+        results = Vote.objects.values('candidate').annotate(count=Count('id')).order_by('-count')
+        
         keyword = request.GET.get('keyword', '')
-        users = []
+        only_authorized = request.GET.get('only_authorized') == 'true'
+        
+        # Base query
+        users = User.objects.all().order_by('-date_joined')
+        
         if keyword:
-            users = User.objects.filter(username__icontains=keyword) | User.objects.filter(first_name__icontains=keyword)
-            # Annotate manually or via property
-            for u in users:
-                try:
-                    u.profile
-                except Profile.DoesNotExist:
-                     Profile.objects.create(user=u, can_vote=False)
-                u.has_voted = Vote.objects.filter(user=u).exists()
+            users = users.filter(username__icontains=keyword) | users.filter(first_name__icontains=keyword)
+        
+        if only_authorized:
+            users = users.filter(profile__can_vote=True)
+
+        # Optimization: prefetch related profile to avoid N+1 and ensure profiles exist
+        # However, for simplicity and since profiles are created on the fly in loop below, we keep the loop logic but refine it.
+        # Ideally we should use select_related but we are creating profiles dynamically.
+        
+        # Let's filter first, then iterate.
+        # But if profiles don't exist, filtering by profile__can_vote might miss users who don't have a profile yet (they are effectively False).
+        # Users without profile are False. So only_authorized=True is safe to filter.
+        
+        final_users = []
+        for u in users:
+            try:
+                u.profile
+            except Profile.DoesNotExist:
+                 Profile.objects.create(user=u, can_vote=False)
+            
+            # If we filtered by only_authorized, we might have needed the profile to exist before query.
+            # But the query `profile__can_vote=True` does JOIN. If profile missing -> exclude. Correct.
+            
+            u.has_voted = Vote.objects.filter(user=u).exists()
+            final_users.append(u)
         
         context = {
             'message': config.message,
             'results': results,
-            'users': users,
-            'keyword': keyword
+            'users': final_users,
+            'keyword': keyword,
+            'only_authorized': only_authorized
         }
         return render(request, 'admin.html', context)
 
@@ -128,8 +156,9 @@ class AdminView(LoginRequiredMixin, UserPassesTestMixin, View):
             messages.success(request, "투표 메시지가 변경되었습니다.")
         
         elif action == 'search_user':
-            keyword = request.POST.get('keyword')
-            return redirect(f'/root/?keyword={keyword}')
+            keyword = request.POST.get('keyword', '')
+            only_authorized = request.POST.get('only_authorized', 'false')
+            return redirect(f'/root/?keyword={keyword}&only_authorized={only_authorized}')
         
         elif action == 'grant_permission':
             user_id = request.POST.get('user_id')
@@ -138,6 +167,17 @@ class AdminView(LoginRequiredMixin, UserPassesTestMixin, View):
                 profile.can_vote = True
                 profile.save()
                 messages.success(request, "투표 권한이 부여되었습니다.")
+            except Profile.DoesNotExist:
+                pass
+            return redirect(request.META.get('HTTP_REFERER', '/root/'))
+
+        elif action == 'revoke_permission':
+            user_id = request.POST.get('user_id')
+            try:
+                profile = Profile.objects.get(user_id=user_id)
+                profile.can_vote = False
+                profile.save()
+                messages.warning(request, "투표 권한이 회수되었습니다.")
             except Profile.DoesNotExist:
                 pass
             return redirect(request.META.get('HTTP_REFERER', '/root/'))
@@ -151,5 +191,9 @@ class AdminView(LoginRequiredMixin, UserPassesTestMixin, View):
         elif action == 'reset_votes':
             Vote.objects.all().delete()
             messages.warning(request, "모든 투표 결과가 초기화되었습니다.")
+
+        elif action == 'reset_permissions':
+            Profile.objects.update(can_vote=False)
+            messages.warning(request, "모든 사용자의 투표 권한이 초기화되었습니다.")
         
         return redirect('/root/')

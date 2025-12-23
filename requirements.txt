@@ -1,3 +1,5 @@
 django>=4.2,<5.0
 pymysql
 cryptography
+python-dotenv
+whitenoise

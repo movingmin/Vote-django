@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,36 +9,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
+
 <body>
     <header>
         <a href="/" class="logo">VoteWeb</a>
         <nav>
             {% if user.is_authenticated %}
-                <span style="margin-right: 1rem; color: var(--text-secondary);">Welcome, {{ user.username }}</span>
-                {% if user.is_superuser %}
-                     <a href="/root" style="color: var(--accent-color); margin-right: 1rem; text-decoration: none;">Admin</a>
-                {% endif %}
-                <form action="{% url 'logout' %}" method="post" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;">Logout</button>
-                </form>
+            <span style="margin-right: 1rem; color: var(--text-secondary);">Welcome, {{ user.username }}</span>
+            {% if user.is_superuser %}
+            <a href="/root" style="color: var(--accent-color); margin-right: 1rem; text-decoration: none;">Admin</a>
+            {% endif %}
+            <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit"
+                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer;">Logout</button>
+            </form>
             {% endif %}
         </nav>
     </header>
 
-    <main>
+    <div id="toast-container">
         {% if messages %}
-            <div class="container" style="margin-bottom: 1rem;">
-                {% for message in messages %}
-                    <div class="messages {{ message.tags }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
+        {% for message in messages %}
+        <div class="messages {{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
         {% endif %}
+    </div>
+
+    <main>
 
         {% block content %}
         {% endblock %}
     </main>
 </body>
+
 </html>
