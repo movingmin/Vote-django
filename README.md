@@ -31,19 +31,34 @@ python -m venv venv
 venv\Scripts\pip install -r requirements.txt
 ```
 
-### 3. 데이터베이스 실행
+### 3. 환경변수 설정 (.env)
+기본 제공되는 예제 파일을 복사하여 환경변수 파일을 생성합니다.
+(PowerShell 명령어)
+```powershell
+copy .env.example .env
+```
+필요하다면 `.env` 파일을 열어 `SECRET_KEY` 등을 변경할 수 있습니다.
+
+### 4. 데이터베이스 실행
 Docker가 켜져 있는지 확인하고 실행하세요.
 ```powershell
 docker-compose up -d
 ```
 
-### 4. 관리자 계정 생성 (최초 1회)
+### 5. 데이터베이스 초기화 (Migrations)
+Django 모델을 기반으로 데이터베이스 테이블을 생성합니다.
+```powershell
+venv\Scripts\python manage.py makemigrations
+venv\Scripts\python manage.py migrate
+```
+
+### 6. 관리자 계정 생성 (최초 1회)
 이 명령어를 통해 `root` 관리자 계정(비밀번호: `rootword`)을 생성합니다.
 ```powershell
 venv\Scripts\python create_superuser.py
 ```
 
-### 5. 서버 실행
+### 7. 서버 실행
 ```powershell
 venv\Scripts\python manage.py runserver
 ```
